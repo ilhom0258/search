@@ -47,6 +47,7 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 	ch := make(chan Result)
 	wg := sync.WaitGroup{}
+	ctx, cancel := context.WithCancel(ctx)
 	for _, file := range files {
 		wg.Add(1)
 		go func(ctx context.Context, ch chan<- Result, file string, wg *sync.WaitGroup) {
@@ -55,9 +56,7 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 			if err != nil {
 				return
 			}
-			if (result == Result{}) {
-				return
-			}
+			ctx.Done()
 			ch <- result
 		}(ctx, ch, file, &wg)
 	}
@@ -65,6 +64,7 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 		defer close(ch)
 		wg.Wait()
 	}()
+	cancel()
 	return ch
 }
 

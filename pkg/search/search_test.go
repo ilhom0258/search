@@ -17,7 +17,7 @@ func TestSearch_All_success(t *testing.T) {
 }
 
 func TestSearch_Any_succes(t *testing.T) {
-	ch := Any(context.Background(),"Ilhom",[]string{"txt.txt"})
+	ch := Any(context.Background(),"Ilhom",[]string{"txt.txt","txt1.txt"})
 	res, ok := <-ch
 	if !ok{
 		t.Errorf("error in Any ok = %v", ok)
