@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	ch := search.All(context.Background(), "Ilhom", []string{"text.txt"})
+	ch := search.Any(context.Background(), "Ilhom", []string{"txt.txt"})
 	r, ok := <-ch
 	log.Print(r, ok)
 }

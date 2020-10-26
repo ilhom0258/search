@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"time"
 )
 
 //Result returns
@@ -18,16 +19,18 @@ type Result struct {
 
 //All finds all occurence of text
 func All(ctx context.Context, phrase string, files []string) <-chan []Result {
-	ch := make(chan []Result, 5)
+	ch := make(chan []Result)
 	ctx, cancel := context.WithCancel(ctx)
 	wg := sync.WaitGroup{}
 
 	for _, file := range files {
 		wg.Add(1)
-		go func(ctx context.Context, ch chan<- []Result, file string, wg *sync.WaitGroup) {
+		log.Print(file)
+		go func(ctx context.Context, ch chan<- []Result, fileName string, wg *sync.WaitGroup) {
 			defer wg.Done()
-			results, err := findAll(phrase, file)
+			results, err := findAll(phrase, fileName)
 			if err != nil {
+				log.Print(err)
 				return
 			}
 			if len(results) > 0 {
@@ -45,20 +48,20 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 
 // Any finds first one occurence of text
 func Any(ctx context.Context, phrase string, files []string) <-chan Result {
+
 	ch := make(chan Result)
-	wg := sync.WaitGroup{}
 	ctx, cancel := context.WithCancel(ctx)
-	for _, file := range files {
-		wg.Add(1)
-		go func(ctx context.Context, ch chan<- Result, file string, wg *sync.WaitGroup) {
-			defer wg.Done()
-			result, err := findAny(phrase, file)
-			if err != nil {
-				return
-			}
-			ctx.Done()
-			ch <- result
-		}(ctx, ch, file, &wg)
+	wg := sync.WaitGroup{}
+
+	for i := 0; i < len(files); i++ {
+		select {
+		case <-ctx.Done():
+			cancel()
+			break
+		case <-time.After(time.Second):
+			wg.Add(1)
+			go findAnyConcurrent(ctx, ch, files[i], phrase, &wg, cancel)
+		}
 	}
 	go func() {
 		defer close(ch)
@@ -66,6 +69,26 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 	}()
 	cancel()
 	return ch
+}
+
+func findAnyConcurrent(ctx context.Context, ch chan<- Result, file string, phrase string, wg *sync.WaitGroup, cancel func()) {
+	defer wg.Done()
+	select{
+	case <-ctx.Done():
+		return
+	default:
+		result, err := findAny(phrase, file)
+		if err != nil {
+			log.Printf("%v error in go", err)
+			return
+		}
+		if (result == Result{}) {
+			return
+		}
+		<-ctx.Done()
+		ch <- result
+		cancel()
+	}
 }
 
 //Helper methods

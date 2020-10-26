@@ -2,26 +2,31 @@ package search
 
 import (
 	"context"
-	"log"
 	"testing"
 )
 
 func TestSearch_All_success(t *testing.T) {
-	ch := All(context.Background(), "Ilhom", []string{"txt.txt"})
+	ch := All(context.Background(), "Ilhom", []string{"txt1.txt", "txt.txt"})
 	res, ok := <-ch
 	if !ok {
 		t.Errorf("error in All success")
 		return
 	}
-	log.Printf("result = %v", res)
+	for _, i := range res {
+		t.Log(i)
+	}
 }
 
-func TestSearch_Any_succes(t *testing.T) {
-	ch := Any(context.Background(),"Ilhom",[]string{"txt.txt","txt1.txt"})
-	res, ok := <-ch
-	if !ok{
-		t.Errorf("error in Any ok = %v", ok)
-		return
-	}	
-	t.Logf("result = %v", res)
+func BenchmarkSearch_Any_success(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ch := Any(context.Background(),"Ilhom",[]string{"txt1.txt","txt.txt"})
+		val, ok := <-ch
+		b.StopTimer()
+		if !ok{
+			b.Errorf("error %v",ok)
+			return
+		}
+		b.Log(val)
+		b.StartTimer()
+	}
 }
