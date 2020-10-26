@@ -6,7 +6,6 @@ import (
 	"log"
 	"strings"
 	"sync"
-	"time"
 )
 
 //Result returns
@@ -53,17 +52,22 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 	ctx, cancel := context.WithCancel(ctx)
 	wg := sync.WaitGroup{}
 
+	result := Result{}
+
 	for i := 0; i < len(files); i++ {
-		select {
-		case <-ctx.Done():
-			cancel()
+		result, _ = findAny(phrase, files[i])
+		if (result != Result{}) {
 			break
-		case <-time.After(time.Second):
-			wg.Add(1)
-			go findAnyConcurrent(ctx, ch, files[i], phrase, &wg, cancel)
 		}
 	}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		if (Result{}!=result){
+			ch <- result
+		}
+	}()
+	go func(){
 		defer close(ch)
 		wg.Wait()
 	}()
@@ -73,7 +77,7 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 
 func findAnyConcurrent(ctx context.Context, ch chan<- Result, file string, phrase string, wg *sync.WaitGroup, cancel func()) {
 	defer wg.Done()
-	select{
+	select {
 	case <-ctx.Done():
 		return
 	default:
